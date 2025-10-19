@@ -12,22 +12,22 @@ const RING_HEADER_SIZE = 16;                 // 4×Uint32
 
 /** @enum {number} */
 const FacetType = Object.freeze({
-  INTENT:      0,
-  CONTEXT:     512,
-  EMOTION:    1024,
-  ACTION:    1536,
-  MEMORY:    2048,
-  TOOLS:     2560,
-  META:      3072,
-  QUERY:     3584,
-  RESPONSE:  4096,
-  CONFIDENCE:4608,
-  ATTENTION: 5120,
-  ERROR:     5632,
-  LEARNING:  6144,
-  THRESHOLD: 6656,
-  RESERVED_A:7168,
-  RESERVE_B:7680
+  INTENT:      0,    // Facet index 0
+  CONTEXT:     1,    // Facet index 1
+  EMOTION:     2,    // Facet index 2
+  ACTION:      3,    // Facet index 3
+  MEMORY:      4,    // Facet index 4
+  TOOLS:       5,    // Facet index 5
+  META:        6,    // Facet index 6
+  QUERY:       7,    // Facet index 7
+  RESPONSE:    8,    // Facet index 8
+  CONFIDENCE:  9,    // Facet index 9
+  ATTENTION:   10,   // Facet index 10
+  ERROR:       11,   // Facet index 11
+  LEARNING:    12,   // Facet index 12
+  THRESHOLD:   13,   // Facet index 13
+  RESERVED_A:  14,   // Facet index 14
+  RESERVE_B:   15    // Facet index 15
 });
 
 /* ---------- SIMD‑friendly Ops --------------------------------- */
@@ -132,7 +132,10 @@ class NeuralMindService {
     }
   }
 
-  getFacet(idx){ if(idx<0||idx>=NUM_FACETS) throw new Error(`Invalid facet ${idx}`); return this.facetViews[idx]; }
+  getFacet(idx){ 
+    if(idx<0||idx>=NUM_FACETS) throw new Error(`Invalid facet ${idx}`); 
+    return this.facetViews[idx]; 
+  }
 
   readFacet(idx, dst){ if(dst.length!==FACET_SIZE) throw new Error(`Target must be ${FACET_SIZE}`); dst.set(this.getFacet(idx)); }
 
@@ -188,7 +191,7 @@ class RingBufferService {
       head = Atomics.load(this.header,0);
       next = (head+1)%RING_SLOTS;
       const tail = Atomics.load(this.header,1);
-      if(next===tail && Atomics.load(this.header,2)>0) throw new Error('Ring buffer full');
+      if(next===tail) throw new Error('Ring buffer full');
     }while(Atomics.compareExchange(this.header,0,head,next)!==head);
 
     const offset = head*FACET_SIZE;
@@ -212,9 +215,16 @@ class RingBufferService {
     return view;
   }
 
-  getSlot(idx){ if(idx<0||idx>=RING_SLOTS) throw new Error(`Index ${idx} out of bounds`); const off=idx*FACET_SIZE; return new Float32Array(this.ring,RING_HEADER_SIZE+off*4,FACET_SIZE); }
+  getSlot(idx){ 
+    if(idx<0||idx>=RING_SLOTS) throw new Error(`Index ${idx} out of bounds`); 
+    const off=idx*FACET_SIZE; 
+    return new Float32Array(this.ring,RING_HEADER_SIZE+off*4,FACET_SIZE); 
+  }
 
-  readSlot(idx,dst){ if(dst.length!==FACET_SIZE) throw new Error(`Target must be ${FACET_SIZE}`); dst.set(this.getSlot(idx)); }
+  readSlot(idx,dst){ 
+    if(dst.length!==FACET_SIZE) throw new Error(`Target must be ${FACET_SIZE}`); 
+    dst.set(this.getSlot(idx)); 
+  }
 
   getHead(){ return Atomics.load(this.header,0); }
   getTail(){ return Atomics.load(this.header,1); }
@@ -313,7 +323,7 @@ class PrometheusService {
     if(!cfg) return;
     const err  = cfg.threshold - observed;
     const upd  = cfg.learningRate * err;
-    let newThr = cfg.threshold + upd; // move toward observed
+    let newThr = cfg.threshold - upd; // move toward observed (subtract to decrease when observed is lower)
     newThr = Math.max(0.5,Math.min(0.95,newThr));
     cfg.threshold = newThr;
   }
@@ -352,7 +362,7 @@ class PrometheusService {
 class NeuralRouterService {
   constructor(mind, ring, simd){
     this.mind   = mind;
-    this.ring   = ring; // kept for completeness
+    this.ring   = ring; 
     this.simd   = simd;
     this.toolMap=[];
   }
@@ -394,8 +404,13 @@ class NeuralRouterService {
 
   updateTool(toolId, feedback, lr=0.01){
     const t=this.toolMap.find(t=>t.toolId===toolId);
-    if(!t){ console.warn(`[NeuralRouter] Tool ${toolId} not found`); return;}
-    if(feedback.length!==FACET_SIZE) throw new Error(`Feedback must be ${FACET_SIZE}`);
+    if(!t){ 
+      console.warn(`[NeuralRouter] Tool ${toolId} not found`); 
+      return;
+    }
+    if(feedback.length!==FACET_SIZE) {
+      throw new Error(`Feedback must be ${FACET_SIZE} floats`);
+    }
     for(let i=0;i<FACET_SIZE;++i){
       const delta = feedback[i]-t.centroid[i];
       t.centroid[i] += lr*delta;
@@ -419,7 +434,7 @@ class NeuralRouterService {
     for(let i=0;i<iter;++i){ const s=performance.now(); this.route(); lat.push(performance.now()-s); }
     const sum=lat.reduce((a,b)=>a+b,0);
     const avg=sum/iter;
-    return { avgLatencyMs:avg, minLatencyMs:Math.min(...lat), maxLatencyMs:Math.max(lat),
+    return { avgLatencyMs:avg, minLatencyMs:Math.min(...lat), maxLatencyMs:Math.max(...lat),
              throughputRps:1000/avg };
   }
 }
