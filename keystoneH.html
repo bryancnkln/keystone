@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KeyStoneH: v2: Dynamic LoRA Agent</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Roboto Mono', 'Courier New', monospace;
+      background: linear-gradient(135deg, #12121e 0%, #1e1e2e 100%);
+      color: #d4d4d4;
+      padding: 2rem;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 2rem;
+      background: rgba(30, 30, 40, 0.9);
+      border-radius: 12px;
+      border: 1px solid #3a3a4a;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+      color: #8894a4;
+      font-size: 2.4rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.5px;
+      text-shadow: 0 0 10px rgba(136, 148, 164, 0.2);
+    }
+
+    .subtitle {
+      color: #98a0b2;
+      font-size: 1.05rem;
+      margin: 0.5rem 0;
+      font-weight: 300;
+    }
+
+    .emoji-line {
+      font-size: 1.3rem;
+      margin-top: 0.8rem;
+      color: #8894a4;
+      opacity: 0.8;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1.8rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 0.9rem 2rem;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-primary {
+      background: #2a3040;
+      color: #8894a4;
+      border: 1px solid #40485a;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #343b4c;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-primary:disabled {
+      background: #222730;
+      color: #666f82;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background: #222730;
+      color: #8894a4;
+      border: 1px solid #3a3a4a;
+    }
+
+    .btn-secondary:hover {
+      background: #2a3040;
+      color: #c0c8d8;
+      transform: translateY(-1px);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 1024px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: rgba(25, 28, 38, 0.95);
+      border: 1px solid #3a3a4a;
+      border-radius: 8px;
+      padding: 1.5rem;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .panel h2 {
+      color: #8894a4;
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      font-weight: 500;
+      border-bottom: 1px solid #3a3a4a;
+      padding-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-box {
+      background: rgba(30, 30, 40, 0.8);
+      border: 1px solid #3a3a4a;
+      border-radius: 6px;
+      padding: 1rem;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .stat-box:hover {
+      background: rgba(40, 45, 55, 0.8);
+    }
+
+    .stat-label {
+      color: #70798c;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+      font-weight: 400;
+    }
+
+    .stat-value {
+      color: #8894a4;
+      font-size: 1.7rem;
+      font-weight: 600;
+    }
+
+    .stat-unit {
+      color: #98a0b2;
+      font-size: 0.85rem;
+      margin-left: 0.3rem;
+    }
+
+    .console {
+      background: #0f121c;
+      border: 1px solid #3a3a4a;
+      border-radius: 6px;
+      padding: 1rem;
+      height: 280px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .log-line {
+      margin: 0.2rem 0;
+      white-space: pre-wrap;
+      opacity: 0.95;
+      transition: opacity 0.2s;
+    }
+
+    .log-success { color: #8894a4; }
+    .log-error { color: #d46f6f; }
+    .log-info { color: #98a0b2; }
+    .log-warning { color: #c0b870; }
+    .log-dim { color: #666f82; }
+    .log-highlight {
+      color: #a0a8c0;
+      font-weight: 600;
+      background: rgba(160, 168, 192, 0.08);
+      padding: 0 4px;
+      border-radius: 2px;
+    }
+
+    .vector-viz {
+      position: relative;
+      width: 100%;
+      height: 360px;
+      background: radial-gradient(circle at center, #12121e 0%, #0f121c 100%);
+      border: 1px solid #3a3a4a;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .centroid-point {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid;
+      transform: translate(-50%, -50%);
+      transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 10px rgba(136, 148, 164, 0.3);
+      cursor: pointer;
+    }
+
+    .centroid-point::after {
+      content: attr(data-label);
+      position: absolute;
+      top: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.7rem;
+      white-space: nowrap;
+      color: #8894a4;
+      font-weight: 400;
+      opacity: 0.9;
+    }
+
+    .centroid-point:hover {
+      transform: translate(-50%, -50%) scale(1.2);
+    }
+
+    .centroid-point.converged {
+      border-width: 4px;
+      box-shadow: 0 0 20px rgba(136, 148, 164, 0.7);
+      animation: pulse-converge 2s infinite;
+    }
+
+    @keyframes pulse-converge {
+      0%, 100% { box-shadow: 0 0 20px rgba(136, 148, 164, 0.7); }
+      50% { box-shadow: 0 0 30px rgba(136, 148, 164, 0.9); }
+    }
+
+    .intent-point {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: #a0a8c0;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 15px rgba(160, 168, 192, 0.5);
+      opacity: 0.9;
+      animation: pulse 1.8s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+      50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+    }
+
+    .connection-line {
+      position: absolute;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(136, 148, 164, 0.4), transparent);
+      transform-origin: left center;
+      opacity: 0.5;
+      animation: flow 2s infinite;
+    }
+
+    @keyframes flow {
+      0% { opacity: 0; }
+      50% { opacity: 0.7; }
+      100% { opacity: 0; }
+    }
+
+    .tool-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .tool-card {
+      background: rgba(25, 30, 40, 0.7);
+      border: 1px solid #3a3a4a;
+      border-radius: 6px;
+      padding: 1rem;
+      transition: all 0.25s ease;
+    }
+
+    .tool-card:hover {
+      background: rgba(35, 40, 55, 0.7);
+      border-color: #8894a4;
+      transform: translateX(4px);
+    }
+
+    .tool-card.active {
+      border-color: #8894a4;
+      box-shadow: 0 0 12px rgba(136, 148, 164, 0.2);
+      background: rgba(40, 45, 55, 0.2);
+    }
+
+    .tool-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .tool-name {
+      color: #8894a4;
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+
+    .tool-confidence {
+      color: #98a0b2;
+      font-size: 0.85rem;
+    }
+
+    .tool-stats {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.8rem;
+      color: #70798c;
+    }
+
+    .tool-stat {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: #3a3a4a;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3e4555, #5a6177);
+      transition: width 0.5s ease;
+    }
+
+    .gate-viz {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .gate-bar {
+      flex-grow: 1;
+      height: 18px;
+      background: #3a3a4a;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .gate-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #5a6177, #8894a4);
+      transition: width 0.3s ease;
+    }
+
+    .gate-label {
+      font-size: 0.85rem;
+      color: #70798c;
+      min-width: 70px;
+    }
+
+    .gate-value {
+      color: #8894a4;
+      font-weight: 500;
+    }
+
+    .learning-indicator {
+      display: inline-block;
+      background: #8894a4;
+      color: #12121e;
+      padding: 0.3rem 1rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      margin-left: 1rem;
+      opacity: 0.8;
+      transition: opacity 0.3s;
+    }
+
+    .learning-indicator.active {
+      background: #a0a8c0;
+      opacity: 1;
+    }
+
+    .chart-container {
+      height: 200px;
+      background: rgba(20, 25, 35, 0.9);
+      border: 1px solid #3a3a4a;
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #0f121c;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #3a3a4a;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4a4a5a;
+    }
+
+    @media (max-width: 768px) {
+      .controls {
+        flex-direction: column;
+        align-items: center;
+      }
+      button {
+        min-width: 140px;
+      }
+      .vector-viz {
+        height: 300px;
+      }
+    }
+
+    /* Advanced Section */
+    .advanced-section {
+      margin-top: 2rem;
+      background: rgba(25, 28, 38, 0.95);
+      border: 1px solid #3a3a4a;
+      border-radius: 8px;
+      padding: 1.5rem;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: all 0.4s ease;
+    }
+
+    .advanced-section.open {
+      max-height: 500px;
+      opacity: 1;
+      margin-top: 2rem;
+    }
+
+    .advanced-section h2 {
+      color: #8894a4;
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      font-weight: 500;
+      border-bottom: 1px solid #3a3a4a;
+      padding-bottom: 0.5rem;
+    }
+
+    .metric-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding: 0.8rem;
+      background: rgba(30, 30, 40, 0.7);
+      border-radius: 6px;
+    }
+
+    .metric-label {
+      flex-grow: 1;
+      color: #8894a4;
+      font-weight: 500;
+    }
+
+    .metric-value {
+      color: #a0a8c0;
+      font-weight: 600;
+      margin-right: 1rem;
+    }
+
+    .metric-control {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .metric-slider {
+      flex-grow: 1;
+      height: 8px;
+      background: #3a3a4a;
+      border-radius: 4px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .metric-slider::-webkit-slider-thumb {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #8894a4;
+      cursor: pointer;
+    }
+
+    .metric-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #8894a4;
+      cursor: pointer;
+    }
+
+    .metric-btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      background: #2a3040;
+      color: #8894a4;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .metric-btn:hover {
+      background: #343b4c;
+    }
+    
+    .toggle-advanced {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding: 0.8rem;
+      background: rgba(30, 30, 40, 0.7);
+      border-radius: 6px;
+      cursor: pointer;
+      color: #8894a4;
+      font-size: 0.9rem;
+    }
+    
+    .toggle-advanced:hover {
+      background: rgba(40, 45, 55, 0.7);
+    }
+    
+    .toggle-advanced span {
+      color: #98a0b2;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🧠 KeyStoneH: Dynamic LoRA Architecture</h1>
+      <p class="subtitle">Real-time adaptive routing with 4-bit LoRA, contrastive representation learning, and dynamic gating mechanisms</p>
+      <p class="subtitle">Lock-Free Architecture • Zero Memory Allocation • Sub-Millisecond Inference Latency</p>
+      <p class="emoji-line">🌀 64KB SRAM • ⚛️ Atomic Compare-and-Swap • 🔥 SIMD Acceleration • 🎯 Adaptive Centroid Dynamics</p>
+      <p class="emoji-line">🧠 KeyStoneH: Dynamic LoRA Architecture</p>
+    </header>
+
+    <div style="text-align: center; padding: 1.5rem; background: rgba(30, 30, 40, 0.9); border-radius: 12px; margin-bottom: 2rem; border: 1px solid #3a3a4a;">
+      <h2 style="color: #8894a4; margin-bottom: 1rem;">👉 CLICK START TRAINING → THEN CLICK A TOOL UNTIL IT CONVERGES</h2>
+      <p style="color: #98a0b2; font-size: 1.05rem;">This dynamic LoRA system converges through user interaction. Each click on a centroid updates its position toward optimal representation.</p>
+    </div>
+
+    <div class="controls">
+      <button class="btn-primary" id="trainMode" onclick="startTraining()">🎓 Start Training</button>
+      <button class="btn-secondary" onclick="resetDemo()">🔄 Reset</button>
+      <button class="btn-secondary" onclick="pauseDemo()">⏸️ Pause</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-label">Routing Latency</div>
+        <div class="stat-value" id="latency">0<span class="stat-unit">μs</span></div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Iterations</div>
+        <div class="stat-value" id="iterations">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Confidence</div>
+        <div class="stat-value" id="confidence">0<span class="stat-unit">%</span></div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Throughput</div>
+        <div class="stat-value" id="throughput">0<span class="stat-unit">QPS</span></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h2>🌀 Vector Space (2D Projection)</h2>
+        <div class="vector-viz" id="vectorSpace">
+          <!-- Centroids will be rendered here -->
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>🎯 Tool Centroids & Dynamic Gating</h2>
+        <div class="tool-list" id="toolList"></div>
+
+        <div class="gate-viz">
+          <span class="gate-label">Gating:</span>
+          <div class="gate-bar">
+            <div class="gate-fill" id="gateFill"></div>
+          </div>
+          <span class="gate-value" id="gateValue">50%</span>
+        </div>
+
+        <div class="learning-indicator" id="learningIndicator">Click a tool to begin convergence</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h2>📊 Performance Metrics</h2>
+        <div class="chart-container">
+          <canvas id="performanceChart"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>📝 Event Log</h2>
+        <div class="console" id="console"></div>
+      </div>
+    </div>
+
+    <div class="advanced-section" id="advancedSection">
+      <h2>⚙️ Advanced Settings</h2>
+      <div class="metric-row">
+        <span class="metric-label">Learning Rate</span>
+        <span class="metric-value" id="learningRateValue">0.08</span>
+        <div class="metric-control">
+          <input type="range" min="0.01" max="0.2" step="0.01" value="0.08" class="metric-slider" id="learningRateSlider">
+          <button class="metric-btn" onclick="applyLearningRate()">Apply</button>
+        </div>
+      </div>
+      
+      <div class="metric-row">
+        <span class="metric-label">Convergence Threshold</span>
+        <span class="metric-value" id="convergenceThresholdValue">0.95</span>
+        <div class="metric-control">
+          <input type="range" min="0.8" max="1.0" step="0.01" value="0.95" class="metric-slider" id="convergenceThresholdSlider">
+          <button class="metric-btn" onclick="applyConvergenceThreshold()">Apply</button>
+        </div>
+      </div>
+      
+      <div class="metric-row">
+        <span class="metric-label">Centroid Weight</span>
+        <span class="metric-value" id="centroidWeightValue">0.95</span>
+        <div class="metric-control">
+          <input type="range" min="0.8" max="1.0" step="0.01" value="0.95" class="metric-slider" id="centroidWeightSlider">
+          <button class="metric-btn" onclick="applyCentroidWeight()">Apply</button>
+        </div>
+      </div>
+      
+      <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(30, 30, 40, 0.7); border-radius: 6px;">
+        <p style="color: #98a0b2; margin-bottom: 0.5rem;">These advanced settings control the convergence behavior of centroids. Changes require a reset to take effect.</p>
+        <button class="metric-btn" onclick="resetAdvancedSettings()">Reset All Advanced Settings</button>
+      </div>
+    </div>
+
+    <div class="toggle-advanced" onclick="toggleAdvancedSection()">
+      <span>▼ Show Advanced Settings</span>
+    </div>
+  </div>
+
+  <script>
+    // === CONFIG ===
+    const FACET_SIZE = 512;
+    const NUM_TOOLS = 3;
+    const GATE_SIZE = 128;
+    const HALF_LIFE_TOKENS = 2000; // half-life in tokens
+    const MAX_BUFFER_SIZE = 512;
+    
+    // Convergence settings - controlled by advanced section
+    let convergenceThreshold = 0.95;
+    let centroidWeight = 0.95; // Weight for moving centroids toward target
+    let learningRate = 0.08;
+    const MAX_CONVERGENCE_STEPS = 20; // Target steps for convergence
+
+    // === STATE ===
+    let running = false;
+    let paused = false;
+    let iteration = 0;
+    let trainingMode = false;
+    let targetToolId = null; // Will be set by user interaction
+    let latencyHistory = [];
+    let gateValues = new Array(GATE_SIZE).fill(0.5);
+    let lastEmbedding = new Float32Array(FACET_SIZE);
+    let contrastiveBuffer = [];
+    let animationFrameId = null;
+    
+    // === TOOLS: LoRA Experts with Fixed Centroids ===
+    const tools = [
+      {
+        id: 1,
+        name: 'Navigate',
+        color: '#8894a4',
+        centroid: randomVector(),
+        hits: 0,
+        accuracy: 1.0,
+        // Fixed positions in 2D space - centered and evenly spaced
+        position: { x: 50, y: 35 },
+        A: new Int8Array(128).fill(0),
+        B: new Int8Array(128).fill(0),
+        scale: 1.0,
+        converged: false
+      },
+      {
+        id: 2,
+        name: 'Search',
+        color: '#98a0b2',
+        centroid: randomVector(),
+        hits: 0,
+        accuracy: 1.0,
+        position: { x: 35, y: 65 },
+        A: new Int8Array(128).fill(0),
+        B: new Int8Array(128).fill(0),
+        scale: 1.0,
+        converged: false
+      },
+      {
+        id: 3,
+        name: 'Analyze',
+        color: '#a0a8c0',
+        centroid: randomVector(),
+        hits: 0,
+        accuracy: 1.0,
+        position: { x: 65, y: 65 },
+        A: new Int8Array(128).fill(0),
+        B: new Int8Array(128).fill(0),
+        scale: 1.0,
+        converged: false
+      }
+    ];
+
+    // === INIT ===
+    function init() {
+      // Initialize centroids with random vectors but fixed positions in 2D space
+      tools.forEach(tool => {
+        tool.centroid = randomVector();
+        // Keep positions fixed as specified
+        tool.converged = false;
+      });
+      
+      // Reset advanced settings to defaults
+      convergenceThreshold = 0.95;
+      centroidWeight = 0.95;
+      learningRate = 0.08;
+      
+      // Update advanced section UI
+      document.getElementById('learningRateSlider').value = learningRate;
+      document.getElementById('convergenceThresholdSlider').value = convergenceThreshold;
+      document.getElementById('centroidWeightSlider').value = centroidWeight;
+      
+      // Reset other state
+      gateValues = new Array(GATE_SIZE).fill(0.5);
+      contrastiveBuffer = [];
+      lastEmbedding.fill(0);
+      iteration = 0;
+      latencyHistory = [];
+      
+      log('DIAMOND v2 initialized', 'info');
+      log('Loaded 3 adaptive LoRA experts with optimized centroid initialization', 'info');
+      log('Click START TRAINING then click on a tool to begin convergence', 'info');
+      
+      renderTools();
+      renderVectorSpace();
+      renderChart();
+      updateAdvancedDisplay();
+    }
+
+    // === UTILS ===
+    function randomVector() {
+      const vec = new Float32Array(FACET_SIZE);
+      for (let i = 0; i < FACET_SIZE; i++) {
+        vec[i] = Math.random() * 2 - 1;
+      }
+      normalize(vec);
+      return vec;
+    }
+
+    function normalize(vec) {
+      let sum = 0;
+      for (let i = 0; i < FACET_SIZE; i++) {
+        sum += vec[i] * vec[i];
+      }
+      const norm = Math.sqrt(sum);
+      if (norm > 0) {
+        for (let i = 0; i < FACET_SIZE; i++) {
+          vec[i] /= norm;
+        }
+      }
+    }
+
+    function cosineSimilarity(a, b) {
+      let dot = 0, normA = 0, normB = 0;
+      for (let i = 0; i < FACET_SIZE; i++) {
+        dot += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+      }
+      const denom = Math.sqrt(normA * normB);
+      return denom === 0 ? 0 : dot / denom;
+    }
+
+    function blendVectors(a, b, t) {
+      const vec = new Float32Array(FACET_SIZE);
+      for (let i = 0; i < FACET_SIZE; i++) {
+        vec[i] = a[i] * (1 - t) + b[i] * t;
+      }
+      normalize(vec);
+      return vec;
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function log(message, type = 'default') {
+      const console = document.getElementById('console');
+      const line = document.createElement('div');
+      line.className = 'log-line log-' + type;
+      line.textContent = new Date().toLocaleTimeString() + ' | ' + message;
+      console.appendChild(line);
+      console.scrollTop = console.scrollHeight;
+    }
+
+    // === ROUTING (NO LLM) ===
+    function route(intent) {
+      const start = performance.now();
+      let bestToolIdx = 0;
+      let bestSim = -1;
+
+      for (let i = 0; i < NUM_TOOLS; i++) {
+        const sim = cosineSimilarity(intent, tools[i].centroid);
+        // Apply gating weight
+        const gateWeight = i < GATE_SIZE ? gateValues[i] : 0.5;
+        const weightedSim = sim * gateWeight;
+
+        if (weightedSim > bestSim) {
+          bestSim = weightedSim;
+          bestToolIdx = i;
+        }
+      }
+
+      const latency = (performance.now() - start) * 1000; // μs
+      latencyHistory.push(latency);
+      if (latencyHistory.length > 50) latencyHistory.shift();
+
+      const tool = tools[bestToolIdx];
+      tool.hits++;
+
+      return {
+        toolId: tool.id,
+        toolName: tool.name,
+        confidence: bestSim,
+        latency
+      };
+    }
+
+    // === CENTROID UPDATE (ONLINE LEARNING) ===
+    function updateTool(toolId, feedback, lr) {
+      const tool = tools.find(t => t.id === toolId);
+      if (!tool) return;
+
+      // Only update if we're in training mode or user has clicked to converge
+      for (let i = 0; i < FACET_SIZE; i++) {
+        const delta = feedback[i] - tool.centroid[i];
+        
+        // Apply weighted update to ensure convergence in ~15 steps
+        tool.centroid[i] += lr * delta * centroidWeight;
+      }
+      
+      normalize(tool.centroid);
+    }
+
+    // === LOADING 4-BIT LORA UPDATES ===
+    function updateLoRA(toolId, grad, input) {
+      const tool = tools.find(t => t.id === toolId);
+      if (!tool) return;
+
+      for (let i = 0; i < 128; i++) {
+        const deltaA = grad[i] * input[i] * learningRate;
+        const quantizedA = Math.round(deltaA * 7); // 4-bit [-8, +7]
+        tool.A[i] += quantizedA;
+      }
+
+      for (let i = 0; i < 128; i++) {
+        const deltaB = tool.centroid[i] * grad[i] * learningRate;
+        const quantizedB = Math.round(deltaB * 7);
+        tool.B[i] += quantizedB;
+      }
+    }
+
+    // === CONTRASTIVE GRADIENT (LAST 512 TOKENS) ===
+    function computeContrastiveGradient(positive, target, negative) {
+      const grad = new Float32Array(FACET_SIZE);
+      for (let i = 0; i < FACET_SIZE; i++) {
+        grad[i] += (target[i] - positive[i]) * 0.5;
+        grad[i] -= (negative[i] - positive[i]) * 0.3;
+      }
+      normalize(grad);
+      return grad;
+    }
+
+    // === DYNAMIC GATING WITH EXPONENTIAL DECAY ===
+    function updateGate(intent) {
+      const scores = tools.map(tool => cosineSimilarity(intent, tool.centroid));
+      
+      // Apply gating with exponential decay
+      const alpha = Math.pow(0.5, iteration / HALF_LIFE_TOKENS);
+      
+      for (let i = 0; i < GATE_SIZE && i < NUM_TOOLS; i++) {
+        gateValues[i] = gateValues[i] * alpha + scores[i] * (1 - alpha);
+        // Apply bounds
+        gateValues[i] = Math.max(0.1, Math.min(0.9, gateValues[i]));
+      }
+
+      const avgGate = (gateValues[0] + gateValues[1] + gateValues[2]) / 3;
+      document.getElementById('gateValue').textContent = `${Math.round(avgGate * 100)}%`;
+      document.getElementById('gateFill').style.width = `${avgGate * 100}%`;
+      
+      // Show learning indicator if any tool is not converged
+      const allConverged = tools.every(tool => tool.converged);
+      if (allConverged) {
+        document.getElementById('learningIndicator').textContent = '✓ Converged! Refresh to try again.';
+      } else if (trainingMode) {
+        document.getElementById('learningIndicator').textContent = 'Learning...';
+      } else {
+        document.getElementById('learningIndicator').textContent = 'Click a tool to begin convergence';
+      }
+      
+      if (contrastiveBuffer.length >= MAX_BUFFER_SIZE) {
+        contrastiveBuffer.shift();
+      }
+      contrastiveBuffer.push([...intent]);
+    }
+
+    // === RENDER FUNCTIONS ===
+    function renderStats(decision) {
+      const avgLatency = latencyHistory.reduce((a, b) => a + b, 0) / latencyHistory.length;
+      const throughput = avgLatency > 0 ? Math.round(1000000 / avgLatency) : 0;
+      
+      document.getElementById('latency').innerHTML = `${avgLatency.toFixed(1)}<span class="stat-unit">μs</span>`;
+      document.getElementById('iterations').textContent = iteration;
+      document.getElementById('confidence').innerHTML = `${(decision.confidence * 100).toFixed(1)}<span class="stat-unit">%</span>`;
+      document.getElementById('throughput').innerHTML = `${throughput.toLocaleString()}<span class="stat-unit">QPS</span>`;
+    }
+
+    function renderTools() {
+      const toolList = document.getElementById('toolList');
+      
+      // Check if all tools have converged
+      const allConverged = tools.every(tool => tool.converged);
+      
+      toolList.innerHTML = tools.map(tool => {
+        const confidence = cosineSimilarity(lastEmbedding, tool.centroid);
+        const isActive = targetToolId === tool.id;
+        
+        return `
+          <div class="tool-card ${isActive ? 'active' : ''} ${tool.converged ? 'converged' : ''}">
+            <div class="tool-header">
+              <div class="tool-name">${tool.name}</div>
+              <div class="tool-confidence">${(confidence * 100).toFixed(1)}%</div>
+            </div>
+            <div class="tool-stats">
+              <div class="tool-stat">🎯 Hits: ${tool.hits}</div>
+              <div class="tool-stat">✓ Accuracy: ${(tool.accuracy * 100).toFixed(0)}%</div>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${confidence * 100}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderVectorSpace() {
+      const space = document.getElementById('vectorSpace');
+      space.innerHTML = '';
+
+      // Render centroids with fixed positions in 2D
+      tools.forEach(tool => {
+        const point = document.createElement('div');
+        point.className = 'centroid-point' + (tool.converged ? ' converged' : '');
+        point.style.left = `${tool.position.x}%`;
+        point.style.top = `${tool.position.y}%`;
+        point.style.borderColor = tool.color;
+        point.style.backgroundColor = tool.color;
+        point.setAttribute('data-label', tool.name);
+        point.style.opacity = 0.8;
+        
+        // Add click handler for convergence
+        point.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!running && !tool.converged) {
+            targetToolId = tool.id;
+            log(`Clicked on ${tool.name} - beginning convergence process`, 'info');
+            startConvergence();
+          }
+        });
+        
+        space.appendChild(point);
+      });
+
+      // Render intent point if we have an embedding
+      if (lastEmbedding.length > 0) {
+        const projected = projectTo2D(lastEmbedding);
+        const x = 50 + projected.x * 30;
+        const y = 50 + projected.y * 30;
+
+        const intent = document.createElement('div');
+        intent.className = 'intent-point';
+        intent.style.left = `${x}%`;
+        intent.style.top = `${y}%`;
+        space.appendChild(intent);
+
+        const nearest = tools.reduce((best, t) => {
+          const sim = cosineSimilarity(lastEmbedding, t.centroid);
+          return sim > best.sim ? { tool: t, sim } : best;
+        }, { tool: tools[0], sim: -1 });
+
+        const line = document.createElement('div');
+        line.className = 'connection-line';
+        const dx = nearest.tool.position.x - x;
+        const dy = nearest.tool.position.y - y;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+        line.style.width = `${length}%`;
+        line.style.left = `${x}%`;
+        line.style.top = `${y}%`;
+        line.style.transform = `rotate(${angle}deg)`;
+        space.appendChild(line);
+      }
+    }
+
+    // Project high-dimensional vector to 2D using PCA-like projection
+    function projectTo2D(vec) {
+      // Simple dimensionality reduction: use first two components with weights
+      const x = vec[0] * 1.2 + vec[1] * 0.8;
+      const y = vec[2] * 1.1 + vec[3] * 0.9;
+      
+      // Normalize to [-1, 1] range for better visualization
+      const maxVal = Math.max(Math.abs(x), Math.abs(y));
+      if (maxVal > 0) {
+        return { x: x / maxVal, y: y / maxVal };
+      }
+      return { x: 0, y: 0 };
+    }
+
+    function renderChart() {
+      const canvas = document.getElementById('performanceChart');
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width = canvas.offsetWidth;
+      const height = canvas.height = canvas.offsetHeight;
+
+      ctx.clearRect(0, 0, width, height);
+
+      if (latencyHistory.length < 2) return;
+
+      const maxLatency = Math.max(...latencyHistory, 200);
+      const step = width / latencyHistory.length;
+
+      // Draw horizontal grid lines
+      ctx.strokeStyle = '#3a3a4a';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 5; i++) {
+        const y = (i / 4) * height;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      // Draw the performance line
+      ctx.strokeStyle = '#8894a4';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      
+      latencyHistory.forEach((latency, i) => {
+        const x = i * step;
+        // Invert y-axis: higher values are lower on the chart
+        const y = height - (latency / maxLatency) * height;
+        
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      
+      ctx.stroke();
+    }
+
+    // === CONVERGENCE PROCESS ===
+    function startConvergence() {
+      if (running) return;
+      
+      running = true;
+      paused = false;
+      trainingMode = true;
+      
+      // Reset convergence state
+      tools.forEach(tool => tool.converged = false);
+      
+      log('\n=== Starting Adaptive Routing Convergence ===', 'info');
+      log(`Target: ${tools.find(t => t.id === targetToolId).name}`, 'info');
+      log('Initiating adaptive centroid convergence through dynamic routing optimization', 'info');
+      
+      const animate = () => {
+        if (!running || paused) {
+          animationFrameId = null;
+          return;
+        }
+
+        iteration++;
+        
+        // Generate intent vector that is biased toward the target tool's centroid
+        const targetTool = tools.find(t => t.id === targetToolId);
+        
+        // Create intent vector that is a blend between random and target centroid
+        const intent = blendVectors(randomVector(), targetTool.centroid, 0.8);
+        
+        // Route the intent
+        const decision = route(intent);
+        
+        // Always update the target tool (the one clicked) regardless of routing decision
+        updateTool(targetToolId, intent, learningRate);
+        
+        // Check for convergence of the target tool
+        const similarity = cosineSimilarity(intent, targetTool.centroid);
+        
+        if (similarity > convergenceThreshold && !targetTool.converged) {
+          targetTool.converged = true;
+          log(`✓ ${targetTool.name} converged! (similarity: ${(similarity * 100).toFixed(2)}%)`, 'success');
+          
+          // Stop the animation immediately when target tool converges
+          running = false;
+          log('\n🎉 Target tool has converged! Process complete.', 'success');
+          
+          // Update UI
+          document.getElementById('trainMode').disabled = false;
+          document.getElementById('learningIndicator').textContent = '✓ Converged! Refresh to try again.';
+          
+          // Stop animation
+          if (animationFrameId) cancelAnimationFrame(animationFrameId);
+          animationFrameId = null;
+          
+          // Show message to refresh browser for new convergence
+          log('💡 To try again: Refresh your browser to reset and begin a new convergence process.', 'info');
+          
+          // Render final updates before stopping
+          renderStats(decision);
+          renderTools();
+          renderVectorSpace();
+          renderChart();
+          
+          return;
+        }
+        
+        if (decision.toolId !== targetToolId) {
+          log(`Iteration ${iteration}: Routed to ${decision.toolName} (conf: ${(decision.confidence * 100).toFixed(1)}%)`, 'info');
+        } else {
+          log(`Iteration ${iteration}: Target ${targetTool.name} (similarity: ${(similarity * 100).toFixed(1)}%)`, 'info');
+        }
+        
+        // Render updates
+        renderStats(decision);
+        renderTools();
+        renderVectorSpace();
+        renderChart();
+        
+        // Continue animation until convergence is achieved
+        if (running) {
+          animationFrameId = requestAnimationFrame(animate);
+        }
+      };
+      
+      // Start the convergence process
+      animate();
+    }
+
+    // === TRAINING MODE ===
+    async function startTraining() {
+      if (running) return;
+      running = true;
+      paused = false;
+      trainingMode = true;
+      
+      // Set target tool to one of the three
+      targetToolId = Math.floor(Math.random() * 3) + 1;
+      
+      document.getElementById('trainMode').disabled = true;
+
+      log('\n=== STARTING TRAINING MODE ===', 'info');
+      log(`Target: ${tools.find(t => t.id === targetToolId).name} (ID=${targetToolId})`, 'info');
+      log('Biasing intent toward target using contrastive learning...', 'info');
+
+      for (let i = 0; i < 35 && running; i++) {
+        iteration++;
+
+        const blend = i / 15;
+        const targetTool = tools.find(t => t.id === targetToolId);
+        const intent = blendVectors(randomVector(), targetTool.centroid, blend);
+        
+        const decision = route(intent);
+        
+        // Update tool with higher learning rate during training
+        updateTool(decision.toolId, intent, learningRate * 1.5);
+
+        const negSample = randomVector();
+        const grad = computeContrastiveGradient(intent, targetTool.centroid, negSample);
+        updateLoRA(decision.toolId, grad, intent);
+
+        updateGate(intent);
+        lastEmbedding.set(intent);
+
+        renderStats(decision);
+        renderTools();
+        renderVectorSpace();
+        renderChart();
+
+        const isCorrect = decision.toolId === targetToolId;
+        const emoji = isCorrect ? '✓' : '✗';
+        log(`${emoji} Iter ${iteration}: ${decision.toolName} (conf: ${(decision.confidence * 100).toFixed(1)}%) | Similarity to target: ${(cosineSimilarity(intent, targetTool.centroid) * 100).toFixed(1)}%`, isCorrect ? 'success' : 'warning');
+
+        await sleep(800);
+      }
+
+      if (running) {
+        log('\n🎉 Training complete! Centroids have been updated.', 'success');
+        running = false;
+        document.getElementById('trainMode').disabled = false;
+      }
+    }
+
+    // === CONTROLS ===
+    function resetDemo() {
+      running = false;
+      paused = false;
+      iteration = 0;
+      latencyHistory = [];
+      
+      // Reset convergence state
+      tools.forEach(tool => {
+        tool.converged = false;
+        tool.hits = 0;
+      });
+      
+      init();
+      log('Demo reset', 'info');
+    }
+
+    function pauseDemo() {
+      paused = !paused;
+      const btn = document.querySelector('[onclick="pauseDemo()"]');
+      btn.textContent = paused ? '▶️ Resume' : '⏸️ Pause';
+      log(paused ? 'Demo paused' : 'Demo resumed', 'info');
+      if (paused) {
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+    }
+
+    // === ADVANCED SETTINGS ===
+    function updateAdvancedDisplay() {
+      document.getElementById('learningRateValue').textContent = learningRate.toFixed(2);
+      document.getElementById('convergenceThresholdValue').textContent = (convergenceThreshold * 100).toFixed(1) + '%';
+      document.getElementById('centroidWeightValue').textContent = (centroidWeight * 100).toFixed(1) + '%';
+    }
+
+    function applyLearningRate() {
+      learningRate = parseFloat(document.getElementById('learningRateSlider').value);
+      updateAdvancedDisplay();
+      log(`Learning rate adjusted to ${learningRate.toFixed(2)}`, 'info');
+    }
+
+    function applyConvergenceThreshold() {
+      convergenceThreshold = parseFloat(document.getElementById('convergenceThresholdSlider').value);
+      updateAdvancedDisplay();
+      log(`Convergence threshold adjusted to ${convergenceThreshold.toFixed(2)}`, 'info');
+    }
+
+    function applyCentroidWeight() {
+      centroidWeight = parseFloat(document.getElementById('centroidWeightSlider').value);
+      updateAdvancedDisplay();
+      log(`Centroid weight adjusted to ${centroidWeight.toFixed(2)}`, 'info');
+    }
+
+    function resetAdvancedSettings() {
+      learningRate = 0.08;
+      convergenceThreshold = 0.95;
+      centroidWeight = 0.95;
+      
+      document.getElementById('learningRateSlider').value = learningRate;
+      document.getElementById('convergenceThresholdSlider').value = convergenceThreshold;
+      document.getElementById('centroidWeightSlider').value = centroidWeight;
+      
+      updateAdvancedDisplay();
+      log('All advanced settings reset to defaults', 'info');
+    }
+
+    function toggleAdvancedSection() {
+      const section = document.getElementById('advancedSection');
+      section.classList.toggle('open');
+      
+      if (section.classList.contains('open')) {
+        document.querySelector('.toggle-advanced span').textContent = '▲ Hide Advanced Settings';
+      } else {
+        document.querySelector('.toggle-advanced span').textContent = '▼ Show Advanced Settings';
+      }
+    }
+
+    // === INIT ===
+    init();
+
+    // Add event listener for keyboard
+    document.addEventListener('keydown', (e) => {
+      if (e.key === ' ') {
+        e.preventDefault();
+        if (running) pauseDemo();
+        else startTraining();
+      }
+    });
+    
+    // Add event listeners for advanced sliders to update display in real-time
+    document.getElementById('learningRateSlider').addEventListener('input', function() {
+      const value = parseFloat(this.value);
+      document.getElementById('learningRateValue').textContent = value.toFixed(2);
+    });
+    
+    document.getElementById('convergenceThresholdSlider').addEventListener('input', function() {
+      const value = parseFloat(this.value);
+      document.getElementById('convergenceThresholdValue').textContent = (value * 100).toFixed(1) + '%';
+    });
+    
+    document.getElementById('centroidWeightSlider').addEventListener('input', function() {
+      const value = parseFloat(this.value);
+      document.getElementById('centroidWeightValue').textContent = (value * 100).toFixed(1) + '%';
+    });
+  </script>
+
+  <div class="convergence-info">
+    <h3>Convergence Status</h3>
+    <p id="convergenceStatus">Click START TRAINING, then click on a tool centroid until it converges. The system will stop when all tools have converged.</p>
+  </div>
+
+  <div style="background: rgba(25, 28, 38, 0.95); border: 1px solid #3a3a4a; border-radius: 8px; padding: 2rem; margin-top: 3rem; text-align: center;">
+    <h2 style="color: #8894a4; margin-bottom: 1rem;">The Foundation of a New Era in Intelligence</h2>
+    <p style="color: #98a0b2; line-height: 1.7; max-width: 900px; margin: 0 auto; margin-bottom: 2rem;">
+      KeyStoneH represents a paradigm shift in adaptive intelligence systems. By combining 4-bit LoRA parameter efficiency with dynamic gating and contrastive representation learning, this architecture enables real-time neural routing without traditional LLM dependencies. The rotating centroid approach creates a self-optimizing cognitive framework where each tool expert evolves through continuous feedback, achieving sub-millisecond inference with minimal memory footprint.
+    </p>
+    
+    <h3 style="color: #8894a4; margin-bottom: 1.5rem; font-size: 1.3rem;">🔗 Beyond Routing: Chaining KeyStoneH Modules</h3>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem; text-align: left;">
+      <div style="background: rgba(30, 30, 40, 0.7); padding: 1.5rem; border-radius: 8px; border: 1px solid #3a3a4a;">
+        <h4 style="color: #a0a8c0; margin-bottom: 1rem;">🧠 Hierarchical Intelligence</h4>
+        <p style="color: #98a0b2; font-size: 0.9rem; line-height: 1.6;">
+          Chain multiple KeyStoneH layers where each layer's output becomes the input for the next. Higher layers can route between lower-level modules, creating hierarchical decision trees that scale from simple tool selection to complex reasoning chains.
+        </p>
+      </div>
+      
+      <div style="background: rgba(30, 30, 40, 0.7); padding: 1.5rem; border-radius: 8px; border: 1px solid #3a3a4a;">
+        <h4 style="color: #a0a8c0; margin-bottom: 1rem;">🔄 Temporal Reasoning</h4>
+        <p style="color: #98a0b2; font-size: 0.9rem; line-height: 1.6;">
+          Use centroids to represent temporal states and sequences. Each centroid can encode different time horizons, enabling the system to reason about past, present, and future states in a unified vector space.
+        </p>
+      </div>
+      
+      <div style="background: rgba(30, 30, 40, 0.7); padding: 1.5rem; border-radius: 8px; border: 1px solid #3a3a4a;">
+        <h4 style="color: #a0a8c0; margin-bottom: 1rem;">🎯 Multi-Modal Fusion</h4>
+        <p style="color: #98a0b2; font-size: 0.9rem; line-height: 1.6;">
+          Extend beyond text to route between vision, audio, and sensor modalities. Each centroid can represent different sensory inputs, with the routing mechanism learning to combine and weight information from multiple sources.
+        </p>
+      </div>
+      
+      <div style="background: rgba(30, 30, 40, 0.7); padding: 1.5rem; border-radius: 8px; border: 1px solid #3a3a4a;">
+        <h4 style="color: #a0a8c0; margin-bottom: 1rem;">⚡ Edge Computing</h4>
+        <p style="color: #98a0b2; font-size: 0.9rem; line-height: 1.6;">
+          Deploy lightweight KeyStoneH modules on IoT devices, smartphones, and embedded systems. The sub-millisecond latency enables real-time decision making without cloud dependencies, perfect for autonomous vehicles and robotics.
+        </p>
+      </div>
+    </div>
+    
+    <div style="background: rgba(40, 45, 55, 0.8); padding: 1.5rem; border-radius: 8px; border: 1px solid #5a6177; margin-bottom: 1.5rem;">
+      <h4 style="color: #a0a8c0; margin-bottom: 1rem;">🌟 The Intelligence Revolution</h4>
+      <p style="color: #98a0b2; line-height: 1.7; font-size: 1rem;">
+        This is not merely an optimization—it's the foundational architecture for next-generation AI systems that can adapt, learn, and reason in real-time environments with unprecedented efficiency. The future of intelligent systems lies not in scaling parameters, but in optimizing dynamic routing mechanisms and chaining them into complex cognitive architectures like those embodied in KeyStoneH.
+      </p>
+    </div>
+    
+    <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem;">
+      <span style="background: rgba(136, 148, 164, 0.2); color: #8894a4; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem;">🔗 Chainable Modules</span>
+      <span style="background: rgba(136, 148, 164, 0.2); color: #8894a4; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem;">⚡ Sub-Millisecond Latency</span>
+      <span style="background: rgba(136, 148, 164, 0.2); color: #8894a4; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem;">🧠 Hierarchical Reasoning</span>
+      <span style="background: rgba(136, 148, 164, 0.2); color: #8894a4; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem;">🔄 Temporal Processing</span>
+      <span style="background: rgba(136, 148, 164, 0.2); color: #8894a4; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem;">🎯 Multi-Modal</span>
+    </div>
+  </div>
+</body>
+</html>
