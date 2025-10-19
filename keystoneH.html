@@ -983,27 +983,39 @@
     function renderStats(decision) {
       const avgLatency = latencyHistory.reduce((a, b) => a + b, 0) / latencyHistory.length;
       const throughput = avgLatency > 0 ? Math.round(1000000 / avgLatency) : 0;
-      
+
+      // Show confidence for the currently targeted tool (the one being clicked/converged)
+      let confidence = 0;
+      if (targetToolId) {
+        const targetTool = tools.find(t => t.id === targetToolId);
+        if (targetTool) {
+          confidence = cosineSimilarity(lastEmbedding, targetTool.centroid);
+        }
+      } else {
+        confidence = decision.confidence;
+      }
+
       document.getElementById('latency').innerHTML = `${avgLatency.toFixed(1)}<span class="stat-unit">μs</span>`;
       document.getElementById('iterations').textContent = iteration;
-      document.getElementById('confidence').innerHTML = `${(decision.confidence * 100).toFixed(1)}<span class="stat-unit">%</span>`;
+      document.getElementById('confidence').innerHTML = `${(confidence * 100).toFixed(1)}<span class="stat-unit">%</span>`;
       document.getElementById('throughput').innerHTML = `${throughput.toLocaleString()}<span class="stat-unit">QPS</span>`;
     }
 
     function renderTools() {
       const toolList = document.getElementById('toolList');
-      
+
       // Check if all tools have converged
       const allConverged = tools.every(tool => tool.converged);
-      
+
       toolList.innerHTML = tools.map(tool => {
         const confidence = cosineSimilarity(lastEmbedding, tool.centroid);
         const isActive = targetToolId === tool.id;
-        
+        const isTargeted = targetToolId === tool.id;
+
         return `
           <div class="tool-card ${isActive ? 'active' : ''} ${tool.converged ? 'converged' : ''}">
             <div class="tool-header">
-              <div class="tool-name">${tool.name}</div>
+              <div class="tool-name">${isTargeted ? '🎯 ' : ''}${tool.name}${isTargeted ? ' (Target)' : ''}</div>
               <div class="tool-confidence">${(confidence * 100).toFixed(1)}%</div>
             </div>
             <div class="tool-stats">
@@ -1167,6 +1179,11 @@
         
         // Always update the target tool (the one clicked) regardless of routing decision
         updateTool(targetToolId, intent, learningRate);
+
+        // Increment hits for the target tool since we're actively working on it
+        if (targetTool) {
+          targetTool.hits++;
+        }
         
         // Check for convergence of the target tool
         const similarity = cosineSimilarity(intent, targetTool.centroid);
