@@ -2,6 +2,8 @@
 
 A real-time adaptive routing system with 4-bit LoRA, contrastive representation learning, and dynamic gating mechanisms. This interactive demo showcases a paradigm shift in adaptive intelligence systems that achieves sub-millisecond inference latency without traditional LLM dependencies.
 
+I WILL ORGANIZE. TRY HTML DEMO
+
 ## Features
 
 - **Real-time Adaptive Routing**: Dynamic centroid-based tool selection with instant convergence
